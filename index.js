@@ -76,7 +76,7 @@ app.get('/upload', checkauthenticated,(req,res) =>{
 })
 
 //S3 Upload
-app.post('/upload', async (req,res)=>{
+app.post('/upload',checkauthenticated, async (req,res)=>{
     // Return Upload Presigned URL
     const {filename} = req.body
     //const {filename, contentType} = req.body
@@ -136,13 +136,13 @@ app.post('/upload', async (req,res)=>{
     res.status(500).send("Transcoding Failed :(")
     })
     .run();
-})*/
+})
 
 // Download
 app.get('/download/:filename', checkauthenticated,(req, res) => {
   const filepath = path.join(__dirname, 'upload', req.params.filename);
   res.download(filepath);
-});
+});*/
 
 
 //Login
