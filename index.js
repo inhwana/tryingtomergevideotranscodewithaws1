@@ -97,7 +97,7 @@ app.post('/upload',checkauthenticated, async (req,res)=>{
 })
 
 // Transcode the video from S3
-app.post('/transcode', async (req,res) =>{
+app.post('/transcode',checkauthenticated, async (req,res) =>{
     const {filename} = req.body
     let transcodedkey = `transcoded${filename}`
     let response
@@ -128,6 +128,10 @@ app.post('/transcode', async (req,res) =>{
     .outputOptions('-movflags frag_keyframe+empty_moov') // Used because MP4 does not work well with streams
     .videoCodec('libx264')
     .format('mp4')
+    .on('start', cmd => console.log('FFmpeg started:', cmd))
+    .on('end', ()=>{
+        console.log("Transcoding Complete")
+    })
     .on('error', (err) => {
     console.error('Error:', err.message);
     res.status(500).send("Transcoding Failed :(")
