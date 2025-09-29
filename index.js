@@ -27,9 +27,10 @@ s3Client = new S3.S3Client({ region: 'ap-southeast-2'})
 
 //Default
 const app = express()
-app.set("view engine", "ejs")
+app.set("view engine", "ejs") // For using ejs 
 app.use(express.urlencoded({ extended: true })); // To get forms from EJS
 dotenv.config() // Configuratio
+app.use(express.json()) // For parsing json
 
 
 /////
