@@ -9,12 +9,20 @@ const dotenv = require('dotenv')
 const fs = require('fs')
 const path = require('path')
 const initializepassport = require('./passportconfig')
-const S3 = require("@aws-sdk/client-s3") // AWS S3
-const bucketName = 'n10851879-test' // Test Bucket Name
 const SecretsManager = require("@aws-sdk/client-secrets-manager");
 const {} = require("./auth.js")
 
-// router for routes
+//AWS
+const S3 = require("@aws-sdk/client-s3") // AWS S3
+const S3Presigner = require("@aws-sdk/s3-request-presigner");
+const { Upload } = require("@aws-sdk/lib-storage")
+const { PassThrough } = require('stream');
+const { DeleteObjectCommand } = require("@aws-sdk/client-s3");
+const bucketName = 'n10851879-test' // Test Bucket Name
+s3Client = new S3.S3Client({ region: 'ap-southeast-2'})
+
+
+// router for routes // Delete
 
 
 //Default
@@ -42,9 +50,6 @@ app.use(passport.session())
 /////
 
 
-// hi inhwa
-
-
 //Multer
 const storage = multer.diskStorage({
     destination: (req, file, cb) =>{
@@ -70,8 +75,28 @@ app.get('/upload', checkauthenticated,(req,res) =>{
     res.render("upload")
 })
 
+//S3 Upload
+app.post('/upload', async (req,res)=>{
+    // Return Upload Presigned URL
+    const {filename} = req.body
+    //const {filename, contentType} = req.body
+    try {
+        const command = new S3.PutObjectCommand({
+                Bucket: bucketName,
+                Key: filename,
+                //ContentType: contentType
+            });
+        const presignedURL = await S3Presigner.getSignedUrl(s3Client, command, {expiresIn: 3600} );
+        console.log(presignedURL);
+        //console.log("Received:", filename, contentType);
+        res.json({url :presignedURL})
+    } catch (err) {
+        console.log(err);
+    }
+})
+
 //Upload Video Transcoding, Used AI to find the ffmpeg setting to create high CPU usage.
-app.post('/upload', checkauthenticated,upload.single("video"), (req,res)=>{
+/*app.post('/upload', checkauthenticated,upload.single("video"), (req,res)=>{
     const inputpath = req.file.path
     const outputfilename = req.body.filename + '.mp4'
     const outputpath = `upload/${outputfilename}`
@@ -111,7 +136,7 @@ app.post('/upload', checkauthenticated,upload.single("video"), (req,res)=>{
     res.status(500).send("Transcoding Failed :(")
     })
     .run();
-})
+})*/
 
 // Download
 app.get('/download/:filename', checkauthenticated,(req, res) => {
