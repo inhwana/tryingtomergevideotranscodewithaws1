@@ -51,8 +51,8 @@ app.use(passport.session())
 /////
 
 
-//Multer
-const storage = multer.diskStorage({
+//Multer 
+/*const storage = multer.diskStorage({
     destination: (req, file, cb) =>{
         cb(null, 'upload')
     },
@@ -64,7 +64,7 @@ const storage = multer.diskStorage({
 const upload = multer({storage: storage})
 
 //Create uplaod file if doesnt exist
-if(!fs.existsSync("upload")){fs.mkdirSync("upload")}
+if(!fs.existsSync("upload")){fs.mkdirSync("upload")}*/
 
 
 
@@ -92,6 +92,70 @@ app.post('/upload',checkauthenticated, async (req,res)=>{
         //console.log("Received:", filename, contentType);
         res.json({url :presignedURL})
     } catch (err) {
+        console.log(err);
+    }
+})
+
+// Transcode the video from S3
+app.post('/transcode', async (req,res) =>{
+    const {filename} = req.body
+    let transcodedkey = `transcoded${filename}`
+    let response
+
+    // Create and send a command to read an object, Download the video from S3
+    try {
+        response = await s3Client.send(
+            new S3.GetObjectCommand({
+                Bucket: bucketName,
+                Key: filename,
+            }))
+    const video = response.Body
+    const videostream = new PassThrough()
+
+    //Creating Upload, uploading mp4 video
+    const uploads3 = new Upload({
+        client: s3Client,
+        params: {
+            Bucket: bucketName,
+            Key:transcodedkey,
+            Body: videostream,
+            ContentType: 'video/mp4'
+        }
+    })
+
+    // Transcoding Using FFMPEG
+    ffmpeg(video)
+    .outputOptions('-movflags frag_keyframe+empty_moov') // Used because MP4 does not work well with streams
+    .videoCodec('libx264')
+    .format('mp4')
+    .on('error', (err) => {
+    console.error('Error:', err.message);
+    res.status(500).send("Transcoding Failed :(")
+    return;
+    })
+    .pipe(videostream, {end: true})
+
+    // Start Uploading
+    await uploads3.done()
+
+    // Create a pre-signed URL for reading an object
+    const command = new S3.GetObjectCommand({
+            Bucket: bucketName,
+            Key: transcodedkey,
+            ResponseContentDisposition: 'attachment; filename="transcodedvideo.mp4"', // Used for directly downloading from presigned URL
+        });
+    const downloadpresignedURL = await S3Presigner.getSignedUrl(s3Client, command, {expiresIn: 3600} );
+    res.json({url :downloadpresignedURL})
+
+    // Delete Original Video    
+    const data = await s3Client.send(new DeleteObjectCommand({
+        Bucket: bucketName,
+        Key: filename
+    }));
+    console.log("Success. Object deleted.", data);
+    // Delete Original Video 
+
+    }catch (err) {
         console.log(err);
     }
 })
