@@ -129,13 +129,13 @@ app.post('/transcode',checkauthenticated, async (req,res) =>{
     .videoCodec('libx264')
     .format('mp4')
     .on('start', cmd => console.log('FFmpeg started:', cmd))
-    .on('end', ()=>{
-        console.log("Transcoding Complete")
-    })
     .on('error', (err) => {
     console.error('Error:', err.message);
     res.status(500).send("Transcoding Failed :(")
     return;
+    })
+    .on('end', ()=>{
+        console.log("Transcoding Complete")
     })
     .pipe(videostream, {end: true})
 
@@ -150,6 +150,7 @@ app.post('/transcode',checkauthenticated, async (req,res) =>{
         });
     const downloadpresignedURL = await S3Presigner.getSignedUrl(s3Client, command, {expiresIn: 3600} );
     res.json({url :downloadpresignedURL})
+    console.log(downloadpresignedURL)
 
     // Delete Original Video    
     const data = await s3Client.send(new DeleteObjectCommand({
